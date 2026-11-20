@@ -45,6 +45,12 @@ extension Room: TransportDelegate {
             }
         }
 
+        if case .publisher = transport.target, let publisherState = PublisherTransportState(pcState) {
+            delegates.notify(label: { "room.didUpdatePublisherTransportState: \(publisherState)" }) {
+                $0.room?(self, didUpdatePublisherTransportState: publisherState)
+            }
+        }
+
         // publisher connected
         if case .publisher = transport.target {
             if pcState.isConnected {
@@ -121,4 +127,18 @@ extension Room: TransportDelegate {
     }
 
     func transportShouldNegotiate(_: Transport) {}
+}
+
+extension PublisherTransportState {
+    init?(_ pcState: LKRTCPeerConnectionState) {
+        switch pcState {
+        case .new: self = .new
+        case .connecting: self = .connecting
+        case .connected: self = .connected
+        case .disconnected: self = .disconnected
+        case .failed: self = .failed
+        case .closed: self = .closed
+        @unknown default: return nil
+        }
+    }
 }

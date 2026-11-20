@@ -661,7 +661,8 @@ extension LocalParticipant {
             let trackInfo = try await room.signalClient.sendAddTrack(cid: sender.senderId,
                                                                      name: track.name,
                                                                      type: track.kind.toPBType(),
-                                                                     source: track.source.toPBType())
+                                                                     source: track.source.toPBType(),
+                                                                     timeout: room._state.connectOptions.publishTimeout)
             {
                 $0.sid = localTrackPublication.sid.stringValue
                 $0.simulcastCodecs = [
@@ -872,6 +873,7 @@ extension LocalParticipant {
                                                          type: track.kind.toPBType(),
                                                          source: track.source.toPBType(),
                                                          encryption: room.e2eeManager?.frameEncryptionType.toPBType() ?? .none,
+                                                         timeout: room._state.connectOptions.publishTimeout,
                                                          populatorFunc)
             }
 

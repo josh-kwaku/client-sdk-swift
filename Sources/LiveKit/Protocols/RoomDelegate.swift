@@ -69,6 +69,10 @@ public protocol RoomDelegate: AnyObject, Sendable {
     @objc optional
     func room(_ room: Room, didUpdateReconnectMode reconnectMode: ReconnectMode)
 
+    /// The publisher peer connection's state has changed.
+    @objc optional
+    func room(_ room: Room, didUpdatePublisherTransportState state: PublisherTransportState)
+
     /// Could not connect to the room. Only triggered when the initial connect attempt fails.
     @objc optional
     func room(_ room: Room, didFailToConnectWithError error: LiveKitError?)

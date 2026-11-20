@@ -640,6 +640,7 @@ extension SignalClient {
                       type: Livekit_TrackType,
                       source: Livekit_TrackSource = .unknown,
                       encryption: Livekit_Encryption.TypeEnum = .none,
+                      timeout: TimeInterval? = nil,
                       _ populator: AddTrackRequestPopulator) async throws -> Livekit_TrackInfo
     {
         let addTrackRequest = try Livekit_AddTrackRequest.with {
@@ -662,7 +663,7 @@ extension SignalClient {
         try await _sendRequest(request)
 
         // Wait for the trackInfo...
-        return try await completer.wait()
+        return try await completer.wait(timeout: timeout)
     }
 
     func sendUpdateTrackSettings(trackSid: Track.Sid, settings: TrackSettings) async throws {

@@ -59,6 +59,10 @@ public final class ConnectOptions: NSObject, Sendable {
 
     public let publisherTransportConnectTimeout: TimeInterval
 
+    /// How long a track publish waits for the server's answer to its add-track request.
+    /// Defaults to 10 seconds.
+    public let publishTimeout: TimeInterval
+
     /// Custom ice servers
     public let iceServers: [IceServer]
 
@@ -88,6 +92,7 @@ public final class ConnectOptions: NSObject, Sendable {
         socketConnectTimeoutInterval = .defaultSocketConnect
         primaryTransportConnectTimeout = .defaultTransportState
         publisherTransportConnectTimeout = .defaultTransportState
+        publishTimeout = .defaultPublish
         iceServers = []
         iceTransportPolicy = .all
         isDscpEnabled = false
@@ -108,7 +113,8 @@ public final class ConnectOptions: NSObject, Sendable {
                 isDscpEnabled: Bool = false,
                 enableMicrophone: Bool = false,
                 protocolVersion: ProtocolVersion = .v16,
-                clientProtocol: ClientProtocol = .v2)
+                clientProtocol: ClientProtocol = .v2,
+                publishTimeout: TimeInterval = .defaultPublish)
     {
         self.autoSubscribe = autoSubscribe
         self.reconnectAttempts = reconnectAttempts
@@ -117,6 +123,7 @@ public final class ConnectOptions: NSObject, Sendable {
         self.socketConnectTimeoutInterval = socketConnectTimeoutInterval
         self.primaryTransportConnectTimeout = primaryTransportConnectTimeout
         self.publisherTransportConnectTimeout = publisherTransportConnectTimeout
+        self.publishTimeout = publishTimeout
         self.iceServers = iceServers
         self.iceTransportPolicy = iceTransportPolicy
         self.isDscpEnabled = isDscpEnabled
@@ -135,6 +142,7 @@ public final class ConnectOptions: NSObject, Sendable {
             reconnectMaxDelay == other.reconnectMaxDelay &&
             socketConnectTimeoutInterval == other.socketConnectTimeoutInterval &&
             primaryTransportConnectTimeout == other.primaryTransportConnectTimeout &&
+            publishTimeout == other.publishTimeout &&
             publisherTransportConnectTimeout == other.publisherTransportConnectTimeout &&
             iceServers == other.iceServers &&
             iceTransportPolicy == other.iceTransportPolicy &&
@@ -153,6 +161,7 @@ public final class ConnectOptions: NSObject, Sendable {
         hasher.combine(socketConnectTimeoutInterval)
         hasher.combine(primaryTransportConnectTimeout)
         hasher.combine(publisherTransportConnectTimeout)
+        hasher.combine(publishTimeout)
         hasher.combine(iceServers)
         hasher.combine(iceTransportPolicy)
         hasher.combine(isDscpEnabled)
