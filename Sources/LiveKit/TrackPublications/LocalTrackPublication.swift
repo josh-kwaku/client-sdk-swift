@@ -93,6 +93,42 @@ extension LocalTrackPublication {
     }
 }
 
+extension LocalTrackPublication {
+    /// Replaces the publish options of this video track and re-computes the sender's encodings.
+    ///
+    /// Layers that dynacast paused stay paused, and layers missing from `options` stay inactive.
+    public func updateVideoPublishOptions(_ options: VideoPublishOptions) async {
+        guard let track = track as? LocalVideoTrack else { return }
+
+        track._state.mutate { $0.lastPublishOptions = options }
+
+        await recomputeSenderParametersKeepingDynacastState()
+    }
+
+    // Recomputing switches every kept encoding back on, so replay the cached dynacast state. A layer the
+    // new options dropped is inactive by now and is filtered out, because switching it on would send it uncapped.
+    @RTC
+    private func recomputeSenderParametersKeepingDynacastState() {
+        recomputeSenderParameters()
+
+        guard let track = track as? LocalVideoTrack,
+              let sender = track._state.rtpSender else { return }
+
+        let cached = track._state.read { $0.subscribedQualities }
+        guard !cached.isEmpty else { return }
+
+        let encodings = sender.raw.parameters.encodings
+        let qualities = cached.filter { quality in
+            guard let rid = quality.quality.asRID,
+                  let encoding = encodings.first(where: { $0.rid == rid }) else { return true }
+            return encoding.isActive
+        }
+        guard !qualities.isEmpty else { return }
+
+        sender.raw._set(subscribedQualities: qualities)
+    }
+}
+
 extension LocalTrackPublication: VideoCapturerDelegate {
     public func capturer(_: VideoCapturer, didUpdate _: Dimensions?) {
         Task.detached {
