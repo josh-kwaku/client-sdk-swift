@@ -97,25 +97,31 @@ extension LocalTrackPublication {
     /// Replaces the publish options of this video track and re-computes the sender's encodings.
     ///
     /// Layers that dynacast paused stay paused, and layers missing from `options` stay inactive.
-    public func updateVideoPublishOptions(_ options: VideoPublishOptions) async {
-        guard let track = track as? LocalVideoTrack else { return }
+    /// Qualities cached for a backup codec's sender are not replayed.
+    ///
+    /// - Returns: `false` when the track is not a local video track, has no sender yet, or the capturer
+    ///   has no dimensions to compute encodings from. The options are still stored, so the next
+    ///   re-compute applies them.
+    @discardableResult
+    public func updateVideoPublishOptions(_ options: VideoPublishOptions) async -> Bool {
+        guard let track = track as? LocalVideoTrack else { return false }
 
         track._state.mutate { $0.lastPublishOptions = options }
 
-        await recomputeSenderParametersKeepingDynacastState()
+        return await recomputeSenderParametersKeepingDynacastState()
     }
 
     // Recomputing switches every kept encoding back on, so replay the cached dynacast state. A layer the
     // new options dropped is inactive by now and is filtered out, because switching it on would send it uncapped.
     @RTC
-    private func recomputeSenderParametersKeepingDynacastState() {
-        recomputeSenderParameters()
+    private func recomputeSenderParametersKeepingDynacastState() -> Bool {
+        guard recomputeSenderParameters() else { return false }
 
         guard let track = track as? LocalVideoTrack,
-              let sender = track._state.rtpSender else { return }
+              let sender = track._state.rtpSender else { return false }
 
         let cached = track._state.read { $0.subscribedQualities }
-        guard !cached.isEmpty else { return }
+        guard !cached.isEmpty else { return true }
 
         let encodings = sender.raw.parameters.encodings
         let qualities = cached.filter { quality in
@@ -123,9 +129,10 @@ extension LocalTrackPublication {
                   let encoding = encodings.first(where: { $0.rid == rid }) else { return true }
             return encoding.isActive
         }
-        guard !qualities.isEmpty else { return }
+        guard !qualities.isEmpty else { return true }
 
         sender.raw._set(subscribedQualities: qualities)
+        return true
     }
 }
 
@@ -204,14 +211,15 @@ extension LocalTrackPublication {
         }
     }
 
+    @discardableResult
     @RTC
-    func recomputeSenderParameters() {
+    func recomputeSenderParameters() -> Bool {
         guard let track = track as? LocalVideoTrack,
-              let sender = track._state.rtpSender else { return }
+              let sender = track._state.rtpSender else { return false }
 
         guard let dimensions = track.capturer.dimensions else {
             log("Cannot re-compute sender parameters without dimensions", .warning)
-            return
+            return false
         }
 
         log("Re-computing sender parameters, dimensions: \(String(describing: track.capturer.dimensions))")
@@ -219,7 +227,7 @@ extension LocalTrackPublication {
         // get current parameters
         let parameters = sender.raw.parameters
 
-        guard let participant, let room = participant._room else { return }
+        guard let participant, let room = participant._room else { return false }
         let publishOptions = (track.publishOptions as? VideoPublishOptions) ?? room._state.roomOptions.defaultVideoPublishOptions
 
         // re-compute encodings
@@ -262,5 +270,7 @@ extension LocalTrackPublication {
             let room = try participant.requireRoom()
             try await room.signalClient.sendUpdateVideoLayers(trackSid: track.sid!, layers: layers)
         }
+
+        return true
     }
 }
